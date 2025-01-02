@@ -1,6 +1,6 @@
 # ISOM_DYN
 Repository for a RCT study exploring the effects of isometric training at LML versus full ROM on muscle hypertrophy
-Author: Dorian Varovic
+
 
 Here is explanation for all the sheets and what they contain and current issues I'm not sure how to handle
 
@@ -11,7 +11,7 @@ START HERE:
 4) Data_Diagnostics
 5) Others are self-explanatory (Plots,SMD,Reliability...)
 
-SHEETS:
+DATA SHEETS:
 
 1) muscle_thickness_master_avg - Contains raw data for each condition,muscle and sites
 2) muscle_thickness_means_avg - Mean and SD values for outcome (muscle.thickness) of the above
@@ -41,4 +41,6 @@ ISSUES:
 4) Fatigue plots that are displaying per set change and are wrapped in within week are showing slopes at 4 and 5 sets in first few weeks,
    however, data doesn't exist for those as 5 sets were only in the last 2 weeks.
    Also, I think I just made two same plots but one is just displaying the same data continuously (2nd one)
+
+5) For muscle thickness I tried calculating outcome as SMD's but posterior draws via emmeans do not correspond to SMD values that I got - see SMD.xlsx and SMD.R
    
