@@ -52,20 +52,24 @@ ST_model <- brm(muscle.thickness ~ 1 + Pre + condition + condition:site + (1 | i
 #MID THIGH--------------------------------------------------------------------
 MT_effects <- emmeans(MT_model, ~ condition, weights = "prop")
 hpd.summary(MT_effects, point.est = mean)
+
 MT_effects_GG <- emmeans(MT_model, spec = ~condition, weights = "prop") %>% gather_emmeans_draws() 
 
 MT_effects_contrast <- pairs(emmeans(MT_model, ~ condition, weights = "prop"))
 hpd.summary(MT_effects_contrast, point.est = mean)
+
 MT_effects_contrast_GG <- pairs(emmeans(MT_model, ~ condition, weights = "prop")) %>% gather_emmeans_draws()
 
 # By condition and site
 MT_effects_condition_site <- emmeans(MT_model, ~ condition | site, weights = "prop")
 hpd.summary(MT_effects_condition_site, point.est = mean) 
+
 MT_effects_GG_condition_site <- MT_effects_condition_site %>% gather_emmeans_draws()
 
 #Contrast for each condition at specific site
 MT_effects_contrast_site <- pairs(MT_effects_condition_site)
 hpd.summary(MT_effects_contrast_site, point.est = mean) 
+
 MT_effects_GG_contrast_site <- MT_effects_contrast_site %>% gather_emmeans_draws()
 
 #SIDE THIGH--------------------------------------------------------------------
