@@ -186,42 +186,93 @@ fatigue_model <- brm(
 
 summary(fatigue_model)
 
-#Slopes for sets
-set_fatigue <- emmeans(
-  fatigue_model, 
-  specs = ~ set_number * condition * week,
-  at = list(
-    set_number = 1:5, week = 1:6), #This is wrong as we had a gradual increase in weeks, and can't seem to get it to work when I tried setting them as a factor
-  type = "response"
+# Generate new data for predictions
+new_data <- expand.grid(
+  set_number = 1:5,  # Maximum number of sets
+  condition = unique(data_fatigue$condition),
+  week = unique(data_fatigue$week)
 )
 
-hpd.summary(set_fatigue, point.est = mean)
-fatigue_slopes_GG <- set_fatigue %>% gather_emmeans_draws()
+# Define the number of sets per week
+sets_per_week <- c(3, 3, 4, 4, 5, 5)
+weeks <- unique(data_fatigue$week)
 
-set_fatigue_summary <- fatigue_slopes_GG %>%
-  group_by(set_number, condition, week) %>%
+# Filter new_data to include only the valid set numbers per week
+new_data <- new_data %>%
+  mutate(max_sets = sets_per_week[match(week, weeks)]) %>%
+  filter(set_number <= max_sets) %>%
+  select(-max_sets)
+
+# Predict posterior samples
+predicted <- posterior_epred(fatigue_model, newdata = new_data, re_formula = NA)
+
+# Create an HPD summary table
+hpd_summary <- as.data.frame(predicted) %>%
+  mutate(row = seq_len(nrow(predicted))) %>%  
+  pivot_longer(
+    cols = -row,  
+    names_to = "sample",
+    values_to = "value"
+  ) %>%
+  group_by(row) %>%
   summarise(
-    mean_emmean = mean(.value, na.rm = TRUE),
-    lower_HPD = quantile(.value, probs = 0.025, na.rm = TRUE),
-    upper_HPD = quantile(.value, probs = 0.975, na.rm = TRUE)
+    mean_emmean = mean(value, na.rm = TRUE),
+    lower_HPD = quantile(value, probs = 0.025, na.rm = TRUE),
+    upper_HPD = quantile(value, probs = 0.975, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    set_number = new_data$set_number[row],
+    condition = new_data$condition[row],
+    week = new_data$week[row]
+  ) %>%
+  select(-row)
+
+
+new_data <- new_data %>%
+  left_join(hpd_summary, by = c("set_number", "condition", "week"))
+
+
+FT1 <- ggplot(new_data, aes(x = set_number, y = mean_emmean, color = condition, group = condition)) +
+  geom_line(size = 1.2) +  # Line for the mean
+  geom_ribbon(aes(ymin = lower_HPD, ymax = upper_HPD, fill = condition), 
+              alpha = 0.2, color = NA) +  # Ribbon for 95% HDI
+  facet_wrap(~ week, ncol = 3, labeller = labeller(week = function(w) paste("Week", w)), scales = "free_x") +
+  scale_color_manual(values = c(DYN_color, ISOM_color)) +
+  scale_fill_manual(values = c(DYN_color, ISOM_color)) +
+  labs(
+    title = "Regression Slopes for Torque Across Sets and Weeks",
+    x = "Set Number",
+    y = "Standardized Peak Torque Values (z)",
+    color = "Condition",
+    fill = "Condition"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    panel.background = element_rect(
+      fill = 'white',
+      color = 'black',
+      linewidth = 1.6
+    ),
+    strip.background = element_rect(
+      color = "black",
+      fill = "black",
+      linetype = "solid"
+    ),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(0.4, "cm"),
+    strip.text = element_text(color = "white", size = 12, face = "bold"),
+    axis.title.x = element_blank(),
+    axis.ticks = element_line(linewidth = 0.5, colour = "black"),
+    axis.ticks.length = unit(0.2, "cm"),
+    axis.text = element_text(
+      family = "Helvetica",
+      size = 12,
+      colour = "black"
+    )
   )
 
-#Slopes for set_number by condition and week
-fatigue_condition_week <- emtrends(
-  fatigue_model,
-  ~ condition | week,
-  var = "set_number",
-  at = list(week = 1:6),  #Strictly define weeks
-  weights = "prop"
-)
-
-hpd.summary(fatigue_condition_week, point.est = mean)
-slopes_GG <- fatigue_condition_week %>% gather_emmeans_draws()
-
-slopes_summary <- slopes_GG %>%
-  group_by(condition, week) %>%
-  summarise(
-    mean_slope = mean(.value, na.rm = TRUE),
-    lower_HPD = quantile(.value, probs = 0.025, na.rm = TRUE),
-    upper_HPD = quantile(.value, probs = 0.975, na.rm = TRUE)
-  )
+# Display plot
+print(FT1)

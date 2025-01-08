@@ -384,9 +384,12 @@ MT.plots3 = (MT5 / MT6) +
   plot_annotation(tag_levels = c("A", "B"))
 
 
-ggsave("MT_plots1.pdf", plot = MT.plots1, width = 16, height = 10)
-ggsave("MT_plots2.pdf", plot = MT.plots2, width = 12, height = 5)
-ggsave("MT_plots3.pdf", plot = MT.plots3, width = 8, height = 7)
+print(MT.plots1)
+print(MT.plots2)
+print(MT.plots3)
+ggsave("plots/MT_plots1.pdf", plot = MT.plots1, width = 16, height = 10)
+ggsave("plots/MT_plots2.pdf", plot = MT.plots2, width = 12, height = 5)
+ggsave("plots/MT_plots3.pdf", plot = MT.plots3, width = 8, height = 7)
 
 #SIDE-THIGH--------------------------------------------------------------------
 ST3 <- ggplot(ST_effects_GG, aes(x = .value, y = condition, fill = condition)) + 
@@ -617,10 +620,12 @@ ST.plots2 = (ST3 + ST4) +
 ST.plots3 = (ST5 / ST6) +
   plot_annotation(tag_levels = c("A", "B"))
 
-
-ggsave("ST_plots1.pdf", plot = ST.plots1, width = 16, height = 10)
-ggsave("ST_plots2.pdf", plot = ST.plots2, width = 12, height = 5)
-ggsave("ST_plots3.pdf", plot = ST.plots3, width = 8, height = 7)
+print(ST.plots1)
+print(ST.plots2)
+print(ST.plots3)
+ggsave("plots/ST_plots1.pdf", plot = ST.plots1, width = 16, height = 10)
+ggsave("plots/ST_plots2.pdf", plot = ST.plots2, width = 12, height = 5)
+ggsave("plots/ST_plots3.pdf", plot = ST.plots3, width = 8, height = 7)
 
 #Plot for fatigue - across sets
 FT1 <- ggplot(set_fatigue_summary, aes(x = set_number, y = mean_emmean, color = condition, group = condition)) +
@@ -664,7 +669,7 @@ FT1 <- ggplot(set_fatigue_summary, aes(x = set_number, y = mean_emmean, color = 
     )
   )
 print(FT1)
-ggsave("FT_plot1.pdf", plot = FT1, width = 16, height = 10)
+ggsave("plots/FT_plot1.pdf", plot = FT1, width = 16, height = 10)
 
 #Plot for fatigue - set number slopes across weeks
 ggplot(slopes_summary, aes(x = week, y = mean_slope, color = condition, group = condition)) +
