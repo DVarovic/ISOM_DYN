@@ -184,68 +184,33 @@ fatigue_model <- brm(
   
 )
 
-summary(fatigue_model)
+data_fatigue <- data_fatigue %>%
+  mutate(max_sets = case_when(
+    week %in% c(1, 2) ~ 3,
+    week %in% c(3, 4) ~ 4,
+    week %in% c(5, 6) ~ 5
+  )) %>%
+  filter(set_number <= max_sets)
 
-# Generate new data for predictions
-new_data <- expand.grid(
-  set_number = 1:5,  # Maximum number of sets
-  condition = unique(data_fatigue$condition),
-  week = unique(data_fatigue$week)
-)
 
-# Define the number of sets per week
-sets_per_week <- c(3, 3, 4, 4, 5, 5)
-weeks <- unique(data_fatigue$week)
-
-# Filter new_data to include only the valid set numbers per week
-new_data <- new_data %>%
-  mutate(max_sets = sets_per_week[match(week, weeks)]) %>%
-  filter(set_number <= max_sets) %>%
-  select(-max_sets)
-
-# Predict posterior samples
-predicted <- posterior_epred(fatigue_model, newdata = new_data, re_formula = NA)
-
-# Create an HPD summary table
-hpd_summary <- as.data.frame(predicted) %>%
-  mutate(row = seq_len(nrow(predicted))) %>%  
-  pivot_longer(
-    cols = -row,  
-    names_to = "sample",
-    values_to = "value"
-  ) %>%
-  group_by(row) %>%
+fatigue_GG <- data_fatigue %>%
+  group_by(week, set_number, condition) %>%
   summarise(
-    mean_emmean = mean(value, na.rm = TRUE),
-    lower_HPD = quantile(value, probs = 0.025, na.rm = TRUE),
-    upper_HPD = quantile(value, probs = 0.975, na.rm = TRUE),
+    mean_z = mean(z, na.rm = TRUE),
+    lower_z = quantile(z, probs = 0.025, na.rm = TRUE),
+    upper_z = quantile(z, probs = 0.975, na.rm = TRUE),
     .groups = "drop"
-  ) %>%
-  mutate(
-    set_number = new_data$set_number[row],
-    condition = new_data$condition[row],
-    week = new_data$week[row]
-  ) %>%
-  select(-row)
+  )
 
-
-new_data <- new_data %>%
-  left_join(hpd_summary, by = c("set_number", "condition", "week"))
-
-
-FT1 <- ggplot(new_data, aes(x = set_number, y = mean_emmean, color = condition, group = condition)) +
-  geom_line(size = 1.2) +  # Line for the mean
-  geom_ribbon(aes(ymin = lower_HPD, ymax = upper_HPD, fill = condition), 
-              alpha = 0.2, color = NA) +  # Ribbon for 95% HDI
-  facet_wrap(~ week, ncol = 3, labeller = labeller(week = function(w) paste("Week", w)), scales = "free_x") +
+ggplot(fatigue_GG, aes(x = set_number, y = mean_z, color = condition, fill = condition)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lower_z, ymax = upper_z), alpha = 0.2, color = NA) + 
+  facet_wrap(~ week, ncol = 3, scales ="free_x", labeller = labeller(week = function(w) paste("Week", w))) +
   scale_color_manual(values = c(DYN_color, ISOM_color)) +
   scale_fill_manual(values = c(DYN_color, ISOM_color)) +
+  scale_x_continuous(breaks = function(x) seq(floor(min(x)), ceiling(max(x)), by = 1)) +
   labs(
-    title = "Regression Slopes for Torque Across Sets and Weeks",
-    x = "Set Number",
-    y = "Standardized Peak Torque Values (z)",
-    color = "Condition",
-    fill = "Condition"
+    y = "Standardized Peak Torque (z-score)"
   ) +
   theme_minimal() +
   theme(
@@ -262,11 +227,12 @@ FT1 <- ggplot(new_data, aes(x = set_number, y = mean_emmean, color = condition, 
     ),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
-    panel.spacing = unit(0.4, "cm"),
+    panel.spacing = unit(.4, "cm"),
     strip.text = element_text(color = "white", size = 12, face = "bold"),
     axis.title.x = element_blank(),
-    axis.ticks = element_line(linewidth = 0.5, colour = "black"),
+    axis.ticks = element_line(linewidth = .5, colour = "black"),
     axis.ticks.length = unit(0.2, "cm"),
+    legend.position = "right",
     axis.text = element_text(
       family = "Helvetica",
       size = 12,
@@ -274,5 +240,118 @@ FT1 <- ggplot(new_data, aes(x = set_number, y = mean_emmean, color = condition, 
     )
   )
 
-# Display plot
-print(FT1)
+#--------------
+
+# Emmeans route calc for week, condition, and set_number
+## Week + Condition + Set Number
+fatigue_effects <- emmeans(
+  fatigue_model,
+  ~ week + condition + set_number,
+  at = list(week = 1:6, set_number = seq(1, 5, by = 1)),
+  weights = "prop"
+)
+hpd.summary(fatigue_effects, point.est = mean)
+
+fatigue_effects_GG <- fatigue_effects_GG %>%
+  left_join(data_fatigue %>% select(week, max_sets) %>% distinct(), by = "week") %>%
+  filter(set_number <= max_sets)
+
+
+## Week + Condition
+fatigue_effects_condition <- emmeans(
+  fatigue_model,
+  ~ week + condition,
+  at = list(week = 1:6),
+  weights = "prop"
+)
+hpd.summary(fatigue_effects_condition, point.est = mean)
+
+## Week + Set Number
+fatigue_effects_set <- emmeans(
+  fatigue_model,
+  ~ week + set_number,
+  at = list(week = 1:6, set_number = seq(1, 5, by = 1)),
+  weights = "prop"
+)
+hpd.summary(fatigue_effects_set, point.est = mean)
+
+# Means of slopes for set_number
+fatigue_trends <- emtrends(
+  fatigue_model,
+  var = "set_number",
+  pairwise ~ condition | week
+)
+
+## Mean of slopes for each week
+hpd.summary(fatigue_trends$emtrends, point.est = mean)
+
+fatigue_trends_GG <- fatigue_trends$emtrends %>%
+  gather_emmeans_draws()  # For ggplot
+
+# Plot predicted longitudinal means
+ggplot(data = fatigue_effects_GG,
+       aes(
+         y = .value,
+         x = set_number,
+         color = condition,
+         fill = condition
+       )) +
+  facet_wrap(~ week, scales = "free", ncol = 3, labeller = labeller(week = function(w) paste("Week", w))) +
+  geom_hline(aes(yintercept = 0), colour = 'black', linetype = 'dashed', linewidth = 0.8) +
+  stat_lineribbon(point_interval = "mean_hdci", .width = .95) +
+  scale_color_manual(values = c(DYN_color, ISOM_color)) +
+  scale_fill_manual(values = alpha(c(DYN_color, ISOM_color), 0.6)) +
+  labs(
+    x = "Set Number",
+    y = "Standardized Peak Torque (z-score)"
+  ) +
+  scale_x_continuous(
+    breaks = function(x) seq(floor(min(x)), ceiling(max(x)), by = 1)
+  )+
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    strip.background = element_rect(color = "black", fill = "black", linetype = "solid"),  
+    strip.text.y = element_text(family = "Helvetica", size = 13, color = "white", face = "bold"),  
+    axis.ticks = element_line(linewidth = .8, colour = "black"),
+    axis.ticks.length = unit(0.2, "cm"),
+    strip.text.x = element_text(family = "Helvetica", size = 13, color = "white", face = "bold"), 
+    legend.position = "none",
+    plot.margin = unit(c(1, 1, 1, 1), "cm"),
+    panel.grid = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_rect(
+      fill = 'white',
+      color = 'black',
+      linewidth = 1.6
+    ), panel.spacing = unit(.4, "cm"),
+    axis.text = element_text(
+      family = "Helvetica",
+      size = 12,
+      colour = "black"
+    )
+  )
+
+# Plot the trends by week with set_number on the x-axis
+ggplot(fatigue_trends_GG, aes(x = set_number, y = .value, color = condition, fill = condition)) +
+  stat_lineribbon(point_interval = "mean_hdci", .width = 0.95) +
+  facet_wrap(~ week, ncol = 3, scales = "free_x", labeller = labeller(week = function(w) paste("Week", w))) +
+  scale_color_manual(values = c(DYN_color, ISOM_color)) +
+  scale_fill_manual(values = alpha(c(DYN_color, ISOM_color), 0.6)) +
+  scale_x_continuous(breaks = function(x) seq(floor(min(x)), ceiling(max(x)), by = 1)) +
+  labs(
+    x = "Set Number",
+    y = "Modeled Standardized Peak Torque (z)"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(color = "black", fill = "white"),
+    strip.background = element_rect(fill = "black", color = "black"),
+    strip.text = element_text(color = "white", size = 12, face = "bold"),
+    legend.position = "right"
+  )
+
+
+
