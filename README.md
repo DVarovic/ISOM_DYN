@@ -32,15 +32,7 @@ ISSUES:
 
    Also, 30% emmeans seem fairly high-ish for ISOM (3.132) and that was a ~1.5mm change Pre-Post?.
    
-   I went over the ultrasound data from scratch on December 28th and these values are correct (extracted twice)
-   
-2) Scaling on the X axis for the posteriors draws for condition:site seems off to me (unsure how to interpret that then)
+2) Not fully confident in fatigue plot (across sets) in each respective week, and can't seem to come up with a working solution to plot the trend of slopes for both conditions throughout the whole intervention
 
-3) TE/ROPE bars on contrasts plots are not being properly displayed I think
-   
-4) Fatigue plots that are displaying per set change and are wrapped in within week are showing slopes at 4 and 5 sets in first few weeks,
-   however, data doesn't exist for those as 5 sets were only in the last 2 weeks.
-   Also, I think I just made two same plots but one is just displaying the same data continuously (2nd one)
-
-5) For muscle thickness I tried calculating outcome as SMD's but posterior draws via emmeans do not correspond to SMD values that I got - see SMD.xlsx and SMD.R
+3) For muscle thickness I tried calculating outcome as SMD's but posterior draws via emmeans do not correspond to SMD values that I got - see SMD.xlsx and SMD.R
    
