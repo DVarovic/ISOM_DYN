@@ -98,60 +98,100 @@ ST_effects_GG_contrast_site <- ST_effects_contrast_site %>% gather_emmeans_draws
 emmeans(MT_model, ~ condition, weights = "prop")%>%
   gather_emmeans_draws()%>%
   group_by(condition)%>%
-  summarise(pd=round(mean(.value>0,na.rm=TRUE)*100,0))
+  summarise(
+    pd = ifelse(mean(.value) > 0,
+                round(mean(.value > 0, na.rm = TRUE) * 100, 0),
+                round(mean(.value < 0, na.rm = TRUE) * 100, 0))
+  )
 
 # By condition over TE
 emmeans(MT_model, ~ condition, weights = "prop")%>%
   gather_emmeans_draws()%>%
   group_by(condition)%>%
-  summarise(pd=round(mean(.value>TE_midthigh_comb,na.rm=TRUE)*100,0))
+  summarise(
+    pd = ifelse(mean(.value) > 0,
+                round(mean(.value > TE_midthigh_comb, na.rm = TRUE) * 100, 0),
+                round(mean(.value < -TE_midthigh_comb, na.rm = TRUE) * 100, 0))
+  )
 
-# By condition and site over TE
+ # By condition and site over TE
 emmeans(MT_model, ~ condition|site, weights = "prop")%>%
   gather_emmeans_draws()%>%
-  summarise(pd=round(mean(.value>TE_midthigh_comb,na.rm=TRUE)*100,0))
+  summarise(
+    pd = ifelse(mean(.value) > 0,
+                round(mean(.value > TE_midthigh_comb, na.rm = TRUE) * 100, 0), #This is wrong as each site has it's own TE
+                round(mean(.value < -TE_midthigh_comb, na.rm = TRUE) * 100, 0))
+  )
 
 # Contrast for condition (>o)
 pairs(emmeans(MT_model, ~condition, weights = "prop"))%>%
   gather_emmeans_draws()%>%
   group_by(contrast)%>%
-  summarise(pd=round(mean(.value>0,na.rm=TRUE)*100,0))
+  summarise(
+    pd = ifelse(mean(.value) > 0,
+                round(mean(.value > 0, na.rm = TRUE) * 100, 0),
+                round(mean(.value < 0, na.rm = TRUE) * 100, 0))
+  )
 
 # Contrast for condition (>TE)
 pairs(emmeans(MT_model, ~condition, weights = "prop"))%>%
   gather_emmeans_draws()%>%
   group_by(contrast)%>%
-  summarise(pd=round(mean(.value>TE_midthigh_comb,na.rm=TRUE)*100,0))
+  summarise(
+    pd = ifelse(mean(.value) > 0,
+                round(mean(.value > TE_midthigh_comb, na.rm = TRUE) * 100, 0),
+                round(mean(.value < -TE_midthigh_comb, na.rm = TRUE) * 100, 0))
+  )
 
 #SIDE-THIGH--------------------------------------------------------------------
 # By condition
 emmeans(ST_model, ~ condition, weights = "prop")%>%
   gather_emmeans_draws()%>%
   group_by(condition)%>%
-  summarise(pd=round(mean(.value>0,na.rm=TRUE)*100,0))
+  summarise(
+    pd = ifelse(mean(.value) > 0,
+                round(mean(.value > 0, na.rm = TRUE) * 100, 0),
+                round(mean(.value < 0, na.rm = TRUE) * 100, 0))
+  )
 
 # By condition over TE
 emmeans(ST_model, ~ condition, weights = "prop")%>%
   gather_emmeans_draws()%>%
   group_by(condition)%>%
-  summarise(pd=round(mean(.value>TE_sidethigh_comb,na.rm=TRUE)*100,0))
+  summarise(
+    pd = ifelse(mean(.value) > 0,
+                round(mean(.value > TE_sidethigh_comb, na.rm = TRUE) * 100, 0),
+                round(mean(.value < -TE_sidethigh_comb, na.rm = TRUE) * 100, 0))
+  )
 
 # By condition and site over TE
 emmeans(ST_model, ~ condition|site, weights = "prop")%>%
   gather_emmeans_draws()%>%
-  summarise(pd=round(mean(.value>TE_sidethigh_comb,na.rm=TRUE)*100,0))
+  summarise(
+    pd = ifelse(mean(.value) > 0,
+                round(mean(.value > TE_sidethigh_comb, na.rm = TRUE) * 100, 0), #This is wrong as each site has it's own TE
+                round(mean(.value < -TE_sidethigh_comb, na.rm = TRUE) * 100, 0))
+  )
 
 # Contrast for condition (>o)
 pairs(emmeans(ST_model, ~condition, weights = "prop"))%>%
   gather_emmeans_draws()%>%
   group_by(contrast)%>%
-  summarise(pd=round(mean(.value>0,na.rm=TRUE)*100,0))
+  summarise(
+    pd = ifelse(mean(.value) > 0,
+                round(mean(.value > 0, na.rm = TRUE) * 100, 0),
+                round(mean(.value < 0, na.rm = TRUE) * 100, 0))
+  )
 
 # Contrast for condition (>TE)
 pairs(emmeans(ST_model, ~condition, weights = "prop"))%>%
   gather_emmeans_draws()%>%
   group_by(contrast)%>%
-  summarise(pd=round(mean(.value>TE_sidethigh_comb,na.rm=TRUE)*100,0))
+  summarise(
+    pd = ifelse(mean(.value) > 0,
+                round(mean(.value > TE_sidethigh_comb, na.rm = TRUE) * 100, 0),
+                round(mean(.value < -TE_sidethigh_comb, na.rm = TRUE) * 100, 0))
+  )
 
 #---------------------------- FATIGUE DATA ANALYSIS------------------------------------------------------------
 first_set_stats <- data_fatigue %>%
@@ -250,4 +290,5 @@ weekly_trends <- emtrends(
   var = "week", 
   at = list(week = 1:6)
 )
+
 
