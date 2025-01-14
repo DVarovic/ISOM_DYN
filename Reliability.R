@@ -10,7 +10,7 @@ sem_results <- list()
 for (muscle_label in names(muscles)) {
   for (site_label in names(sites)) {
     # Read data
-    data_reliability <- read_excel("TRT.xlsx", sheet = "Mid and side comb")
+    data_reliability <- read_excel("Data/TRT.xlsx", sheet = "Mid and side comb")
     
     # Filter data
     filtered_data <- data_reliability %>%
@@ -67,3 +67,4 @@ TE_sidethigh_70 <- 0.3978615
 TE_sidethigh_comb <- 0.4563108
 
 
+QF_comb <- 0.46286705 #average of midthigh and sidethigh comb

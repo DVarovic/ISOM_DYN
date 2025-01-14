@@ -6,21 +6,9 @@
                                                                #and model did not converge well
 
 # ----------------------------- MODEL FITTING -----------------------------
-model <- brm(muscle.thickness ~ 1 + 
-                  (condition * muscle) + 
-                  (condition:site ) + 
-                  (muscle * site + Pre ) + (1 | id),
-                data = mid_side_thigh_master,
-                family = gaussian(),
-                chains = 4,
-                seed = 123,
-                warmup = 2000,
-                iter = 4000,
-                control = list(adapt_delta=0.99)) #This model still did not converge well as well
-
-
-#To make it easier, two models were generated, one for each muscle, and I went with a model you (James) suggested
+#To make it easier, two models were generated, one for each muscle, and I went with a model parameters as James suggested
 data_mid_thigh <- mid_side_thigh_master %>% filter(muscle == "Mid-thigh")
+data_side_thigh <- mid_side_thigh_master %>% filter(muscle == "Side-thigh")
 
 MT_model <- brm(muscle.thickness ~ 1 + Pre + condition + condition:site + (1 | id),
                 data = data_mid_thigh,
@@ -30,14 +18,6 @@ MT_model <- brm(muscle.thickness ~ 1 + Pre + condition + condition:site + (1 | i
                 warmup = 2000,
                 iter = 4000,
                 control = list(adapt_delta=0.99))
-
-summary(MT_model)
-plot(MT_model)
-pp = brms::pp_check(MT_model)
-pp + theme_bw()
-
-
-data_side_thigh <- mid_side_thigh_master %>% filter(muscle == "Side-thigh")
 
 ST_model <- brm(muscle.thickness ~ 1 + Pre + condition + condition:site + (1 | id),
                 data = data_side_thigh,
@@ -156,7 +136,7 @@ pairs(emmeans(ST_model, ~condition, weights = "prop"))%>%
 #---------------------------- FATIGUE DATA ANALYSIS------------------------------------------------------------
 first_set_stats <- data_fatigue %>%
   filter(set_number == 1) %>%  # Filter for first sets
-  group_by(condition, week) %>%  # Group by condition and week
+  group_by(condition, week) %>% 
   summarise(
     mean_first = mean(torque, na.rm = TRUE),  
     sd_first = sd(torque, na.rm = TRUE),  
@@ -184,65 +164,6 @@ fatigue_model <- brm(
   
 )
 
-data_fatigue <- data_fatigue %>%
-  mutate(max_sets = case_when(
-    week %in% c(1, 2) ~ 3,
-    week %in% c(3, 4) ~ 4,
-    week %in% c(5, 6) ~ 5
-  )) %>%
-  filter(set_number <= max_sets)
-
-
-fatigue_GG <- data_fatigue %>%
-  group_by(week, set_number, condition) %>%
-  summarise(
-    mean_z = mean(z, na.rm = TRUE),
-    lower_z = quantile(z, probs = 0.025, na.rm = TRUE),
-    upper_z = quantile(z, probs = 0.975, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-ggplot(fatigue_GG, aes(x = set_number, y = mean_z, color = condition, fill = condition)) +
-  geom_line(size = 1) +
-  geom_ribbon(aes(ymin = lower_z, ymax = upper_z), alpha = 0.2, color = NA) + 
-  facet_wrap(~ week, ncol = 3, scales ="free_x", labeller = labeller(week = function(w) paste("Week", w))) +
-  scale_color_manual(values = c(DYN_color, ISOM_color)) +
-  scale_fill_manual(values = c(DYN_color, ISOM_color)) +
-  scale_x_continuous(breaks = function(x) seq(floor(min(x)), ceiling(max(x)), by = 1)) +
-  labs(
-    y = "Standardized Peak Torque (z-score)"
-  ) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    panel.background = element_rect(
-      fill = 'white',
-      color = 'black',
-      linewidth = 1.6
-    ),
-    strip.background = element_rect(
-      color = "black",
-      fill = "black",
-      linetype = "solid"
-    ),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing = unit(.4, "cm"),
-    strip.text = element_text(color = "white", size = 12, face = "bold"),
-    axis.title.x = element_blank(),
-    axis.ticks = element_line(linewidth = .5, colour = "black"),
-    axis.ticks.length = unit(0.2, "cm"),
-    legend.position = "right",
-    axis.text = element_text(
-      family = "Helvetica",
-      size = 12,
-      colour = "black"
-    )
-  )
-
-#--------------
-
-# Emmeans route calc for week, condition, and set_number
 ## Week + Condition + Set Number
 fatigue_effects <- emmeans(
   fatigue_model,
@@ -252,50 +173,18 @@ fatigue_effects <- emmeans(
 )
 hpd.summary(fatigue_effects, point.est = mean)
 
+fatigue_effects_GG <- fatigue_effects %>%
+  gather_emmeans_draws()  
+
+
 fatigue_effects_GG <- fatigue_effects_GG %>%
-  left_join(data_fatigue %>% select(week, max_sets) %>% distinct(), by = "week") %>%
-  filter(set_number <= max_sets)
+  mutate(max_sets = case_when(
+    week == 1 ~ 3, week == 2 ~ 3, week == 3 ~ 4,
+    week == 4 ~ 4,week == 5 ~ 5, week == 6 ~ 5)) %>%
+  filter(set_number <= max_sets)  # Keep only rows where set_number is within the allowed range
 
 
-## Week + Condition
-fatigue_effects_condition <- emmeans(
-  fatigue_model,
-  ~ week + condition,
-  at = list(week = 1:6),
-  weights = "prop"
-)
-hpd.summary(fatigue_effects_condition, point.est = mean)
-
-## Week + Set Number
-fatigue_effects_set <- emmeans(
-  fatigue_model,
-  ~ week + set_number,
-  at = list(week = 1:6, set_number = seq(1, 5, by = 1)),
-  weights = "prop"
-)
-hpd.summary(fatigue_effects_set, point.est = mean)
-
-# Means of slopes for set_number
-fatigue_trends <- emtrends(
-  fatigue_model,
-  var = "set_number",
-  pairwise ~ condition | week
-)
-
-## Mean of slopes for each week
-hpd.summary(fatigue_trends$emtrends, point.est = mean)
-
-fatigue_trends_GG <- fatigue_trends$emtrends %>%
-  gather_emmeans_draws()  # For ggplot
-
-# Plot predicted longitudinal means
-ggplot(data = fatigue_effects_GG,
-       aes(
-         y = .value,
-         x = set_number,
-         color = condition,
-         fill = condition
-       )) +
+ggplot(fatigue_effects_GG, aes(x = set_number, y = .value, color = condition, fill = condition)) +
   facet_wrap(~ week, scales = "free", ncol = 3, labeller = labeller(week = function(w) paste("Week", w))) +
   geom_hline(aes(yintercept = 0), colour = 'black', linetype = 'dashed', linewidth = 0.8) +
   stat_lineribbon(point_interval = "mean_hdci", .width = .95) +
@@ -332,26 +221,12 @@ ggplot(data = fatigue_effects_GG,
     )
   )
 
-# Plot the trends by week with set_number on the x-axis
-ggplot(fatigue_trends_GG, aes(x = set_number, y = .value, color = condition, fill = condition)) +
-  stat_lineribbon(point_interval = "mean_hdci", .width = 0.95) +
-  facet_wrap(~ week, ncol = 3, scales = "free_x", labeller = labeller(week = function(w) paste("Week", w))) +
-  scale_color_manual(values = c(DYN_color, ISOM_color)) +
-  scale_fill_manual(values = alpha(c(DYN_color, ISOM_color), 0.6)) +
-  scale_x_continuous(breaks = function(x) seq(floor(min(x)), ceiling(max(x)), by = 1)) +
-  labs(
-    x = "Set Number",
-    y = "Modeled Standardized Peak Torque (z)"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.background = element_rect(color = "black", fill = "white"),
-    strip.background = element_rect(fill = "black", color = "black"),
-    strip.text = element_text(color = "white", size = 12, face = "bold"),
-    legend.position = "right"
-  )
+#I can't seem to get trend slopes from 1st to last week to work, literally stuck without options
+#The above plot is using emmeans to plot changes in each week from first to last set, not sure if trend would be needed there as well
 
-
-
+weekly_trends <- emtrends(
+  fatigue_model,
+  ~ condition,
+  var = "week", 
+  at = list(week = 1:6)
+)

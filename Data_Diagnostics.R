@@ -75,3 +75,14 @@ ggplot(data_with_res, aes(y = residuals)) +
     title = "Boxplot of Residuals",
     y = "Residuals"
   )
+
+
+# Check normality and variability of data
+boxplot(muscle.thickness~condition, data=mid_side_thigh_master)
+
+# Check for approximately linear relationship between response variable and covariate
+ggplot(mid_side_thigh_master, aes(y = muscle.thickness, x = Pre, group = condition)) + geom_point() + geom_smooth(method = "lm")
+
+# Check for homogeneity of regression slope: 
+mid_side_thigh_master %>% anova_test(muscle.thickness ~ condition*Pre) #Is the interaction between the covariate and grouping variable statistically significant? NO.
+
